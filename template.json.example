@@ -30,29 +30,25 @@
     ],
     "trainings" : [
         {
-            "title" : "Bachelier en Informatique de gestion",
-            "company" : "IESN, Namur",
-            "date" : "Juin 2026",
+            "title" : "Formation 1",
+            "company" : "Ecole 1",
+            "date" : "Date Fin",
             "learnings" : [
-                "Orientation développement d’applications.",
-                "Diplomation prévue en mi-octobre 2026, mention Satisfaction",
-                "Technologies : HTML, CSS, JavaScript, PHP, React, Express, SQL, UML, C, Java, Spring Boot, Java Swing, Python."
+                "Compétence 1",
+                "Compétence 2",
+                "Compétence 3",
             ]
         }
     ],
     "hobbies" : [
         {
-            "title" : "Taskily",
-            "description" : "Site web full-stack de gestion de tâches (To-Do List)",
-            "link" : "https://github.com/BenjaminLtgs/HENALLUX-B3-Taskily",
+            "title" : "Projet 1",
+            "description" : "Description 1",
+            "link" : "https://github.com",
             "technologies" : [
-                "React", 
-                "ReactNative", 
-                "Express", 
-                "Axios", 
-                "Antdesign", 
-                "Bootstrap", 
-                "Zod"
+                "Technologies 1",
+                "Technologies 2",
+                "Technologies 3"
             ]
         }
     ]
