@@ -1,0 +1,7 @@
+{
+    "fullname" : "Prénom Nom",
+    "job": "Example Travail",
+    "email": "Example@mail.com",
+    "password" : "mot de passe",
+    "error_email": "ErrorExample@mail.com"
+}

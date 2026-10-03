@@ -1,0 +1,10 @@
+[Unit]
+Description=HelicoTaffo Clock 
+
+[Timer]
+OnCalendar=
+RandomizedDelaySec=
+Persistent=
+
+[Install]
+WantedBy=timers.target

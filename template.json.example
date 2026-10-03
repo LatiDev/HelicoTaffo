@@ -1,0 +1,59 @@
+{
+    "sidebar_bg_color" : "1F497D",
+    "title_block_color" : "1F497D",
+    "content_block_color" : "1F497D",
+    "contacts" : {
+        "email" : "Example@mail.com",
+        "adresse" : "Ville",
+        "linkedin" : "https://www.linkedin.com",
+        "leetcode" : "https://leetcode.com",
+        "github (pro)" : "https://github.com",
+        "github (perso)" : "https://github.com"
+    },
+    "skills" : [
+        "Compétence 1",
+        "Compétence 2",
+        "Compétence 3"
+    ],
+    "about" : "Longue description...",
+    "experiences" : [
+        {
+            "title" : "Taff 1",
+            "company" : "Ville",
+            "date" : "Date début – Date Fin",
+            "learnings" : [
+                "Description 1 du Taff 1",
+                "Description 2 du Taff 1",
+                "Description 3 du Taff 1"
+            ]
+        }
+    ],
+    "trainings" : [
+        {
+            "title" : "Bachelier en Informatique de gestion",
+            "company" : "IESN, Namur",
+            "date" : "Juin 2026",
+            "learnings" : [
+                "Orientation développement d’applications.",
+                "Diplomation prévue en mi-octobre 2026, mention Satisfaction",
+                "Technologies : HTML, CSS, JavaScript, PHP, React, Express, SQL, UML, C, Java, Spring Boot, Java Swing, Python."
+            ]
+        }
+    ],
+    "hobbies" : [
+        {
+            "title" : "Taskily",
+            "description" : "Site web full-stack de gestion de tâches (To-Do List)",
+            "link" : "https://github.com/BenjaminLtgs/HENALLUX-B3-Taskily",
+            "technologies" : [
+                "React", 
+                "ReactNative", 
+                "Express", 
+                "Axios", 
+                "Antdesign", 
+                "Bootstrap", 
+                "Zod"
+            ]
+        }
+    ]
+}
