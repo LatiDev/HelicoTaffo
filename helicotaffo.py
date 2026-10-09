@@ -22,8 +22,11 @@ class TemplateParams:
     title_block_color: str
     content_block_color: str
     contacts: dict[str, str]
+    qualities: str
     skills: list[str]
     about: str
+    fullname: str
+    job: str
     experiences: list[Experience]
     trainings: list[Experience]
     hobbies: list[Hobby]
@@ -79,6 +82,10 @@ class ApplicationInsertDTO:
     title: str
     mail: str
     sent_at: float
+    company_id: str
+
+@dataclasses.dataclass
+class ApplicationHasSendDTO:
     company_id: str
 
 @dataclasses.dataclass
@@ -143,8 +150,11 @@ def parse_to_template(data: dict) -> TemplateParams:
         title_block_color=data["title_block_color"],
         content_block_color=data["content_block_color"],
         contacts=dict([(key.title(), value) for key, value in data["contacts"].items()]),
+        qualities=data["qualities"],
         skills=data["skills"],
         about=data["about"],
+        fullname=data["fullname"],
+        job=data["job"],
         experiences=[Experience(**value) for value in data["experiences"]],
         trainings=[Experience(**value) for value in data["trainings"]],
         hobbies=[Hobby(**value) for value in data["hobbies"]]
@@ -478,6 +488,28 @@ def insert_application(
     
     return ApplicationDB(*data)
 
+def has_send_application(
+    cursor: psycopg2.extensions.cursor,
+    dto: ApplicationHasSendDTO
+):
+    try:
+        cursor.execute(
+            """
+            SELECT *
+            FROM application
+            WHERE company_id = %s;
+            """, 
+            (
+                dto.company_id,
+            )
+        )
+
+        data = cursor.fetchone()
+    except Exception:
+        return None
+
+    return ApplicationDB(*data) if data else None
+
 def latest_application(
     cursor: psycopg2.extensions.cursor, 
 ) -> typing.Optional[ApplicationDB]:
@@ -530,7 +562,7 @@ def insert_file(
     
     return FileDB(*data)
 
-def main():
+def run():
     import logging, datetime
     
     if not os.path.exists("logs"):
@@ -539,7 +571,7 @@ def main():
     if not os.path.exists("certification"):
         os.mkdir("certification")
 
-    debug_log = f"./logs/run-{datetime.datetime.now(datetime.timezone.utc).strftime("run-%Y-%m-%d_%H-%M-%S.%f+00-00.log")}.log"
+    debug_log = f"./logs/run-{datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d_%H-%M-%S.%f+00-00")}.log"
 
     logging.basicConfig(
         filename=debug_log,
@@ -560,7 +592,8 @@ def main():
         "database.json",
         "data.csv"
     ]
-    
+
+    logger.info("loading all files...")
     success, fail = smart_load(need)
 
     if len(fail) > 0:
@@ -586,37 +619,45 @@ def main():
     postgress = psycopg2.connect(**database_json)
     database = [CompanyDB(*line) for line in email_lines]
 
-    ollama = model.Model("localhost", "llama3:8b")
+    start_date = datetime.datetime.now()
+
+    logger.info("loading ollama...")
+    ollama = model.Model("localhost", "llama3.2:3b")
 
     postgress.set_client_encoding("UTF8")
     cursor = postgress.cursor()
 
     mail_count = random.randint(config.mail_min, config.mail_max)
-    max_mail = mail_count
     times = gen_wait(config.session_time, mail_count)
 
     if not os.path.exists("cvs"):
         os.mkdir("cvs")
 
-    latest = latest_application(cursor)
-
+    sended = 0
+    skipped = 0
     index = 0
-    if latest:
-        while index < len(database) and database[index].number != latest.company_id:
-            index += 1
 
-        index += 1
-
-    while mail_count:
-        try:
-            logger.info(f"Iteration {max_mail - mail_count}/{max_mail}")
-            
+    logger.info("sending emails...")
+    while sended < mail_count:
+        try:            
             to_wait = times[mail_count]
-            logger.info(f"Waiting for {to_wait} sec...")
+            logger.info(f"waiting {to_wait} sec...")
             wait(to_wait)
 
-            logger.info(f"Processing company")
+            logger.info(f"processing company")
             company = database[index]
+            
+            has_send = has_send_application(
+                cursor,
+                ApplicationHasSendDTO(company.number)
+            )
+            
+            if has_send:
+                logger.info(f"already send application to {company.number}. Skipping...")
+                skipped += 1
+                index += 1
+                continue
+
             company_db = ensure_company(
                 cursor,
                 CompanyEnsureDTO(
@@ -630,7 +671,7 @@ def main():
                 )
             )
 
-            logger.info(f"Processing mail...")
+            logger.info(f"processing mail...")
             title = title_variation(company.name, me.job)
             message = mail_variation(
                 ollama, 
@@ -643,7 +684,7 @@ def main():
 
             email = mail.base(me.email, "bl@dtd.be", title, message)
 
-            logger.info(f"Processing application...")
+            logger.info(f"processing application...")
             application_db = insert_application(
                 cursor, 
                 ApplicationInsertDTO(
@@ -693,6 +734,8 @@ def main():
 
             postgress.commit()
             logger.info(f"sended email to {company.email}")
+
+            sended += 1
         except Exception as error:
             postgress.rollback()
             logger.exception(error)
@@ -701,17 +744,23 @@ def main():
             mail.add_file(email, debug_log)
             mail.send(error_email, me.email, me.password)
 
+            skipped += 1
             continue
-            
-        finally:
-            index += 1
-            mail_count -= 1
 
+        index += 1
 
-    logger.info(f"finished all the {mail_count} companies")
+    finish_date = datetime.datetime.now()
+
+    logger.info(f"""
+        {index} company visited, 
+        {sended} company contacted, 
+        {skipped} company skipped,
+        started at {start_date},
+        finished at {finish_date}
+    """)
 
     cursor.close()
     postgress.close()
 
 if __name__ == "__main__":
-    main()
+    run()
