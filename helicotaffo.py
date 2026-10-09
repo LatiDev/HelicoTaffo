@@ -644,7 +644,7 @@ def run():
             logger.info(f"waiting {to_wait} sec...")
             wait(to_wait)
 
-            logger.info(f"processing company")
+            logger.info(f"processing company...")
             company = database[index]
             
             has_send = has_send_application(
@@ -696,7 +696,7 @@ def run():
             )
 
             if company.classification == "MAIN":
-                logger.info(f"adding files to application")
+                logger.info(f"adding files to application...")
                 
                 resume_filename = filename_variation(company.name)
                 pdf_filename = renderer.do(resume_variation(original, ollama))
@@ -716,7 +716,7 @@ def run():
                 for name, filename, path in email_files:
                     shutil.copy(name, path)
 
-                    logger.info(f"inserting {path} into mail")
+                    logger.info(f"inserting {path} into mail...")
 
                     insert_file(
                         cursor, 
@@ -756,7 +756,8 @@ def run():
         {sended} company contacted, 
         {skipped} company skipped,
         started at {start_date},
-        finished at {finish_date}
+        finished at {finish_date},
+        process took {finish_date - start_date}
     """)
 
     cursor.close()
