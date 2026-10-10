@@ -31,6 +31,7 @@ class TemplateParams:
     trainings: list[Experience]
     hobbies: list[Hobby]
 
+
 @dataclasses.dataclass
 class CompanyDB:
     number: str
@@ -293,33 +294,40 @@ def mail_variation(ollama: model.Model, mail: str):
 def hash_file(filename: str):
     return hashlib.sha256(open(filename, "rb").read()).hexdigest()
 
-def smart_load(to: list):
+def smart_load(filepath: str | pathlib.Path):
+    path = pathlib.Path(filepath)
+
+    if not path.exists():
+        return None
+
+    if path.match("*.json"):
+        return json.loads(path.read_text(encoding="UTF-8"))
+
+    elif path.match("*.csv"):
+        with open(path, 'r', encoding="UTF-8", newline='') as file:
+            reader = csv.reader(file)
+            next(reader)
+            return [row for row in reader]
+
+    elif path.match("*.txt"):
+        return path.read_text(encoding="UTF-8")
+
+    elif path.match("*.tex"):
+        return path.read_text(encoding="UTF-8")
+
+    else:
+        raise NotImplemented(f"{path} extension not supported")
+
+def smart_loads(to: list):
     success, fail = [], []
     
     for file in to:
-        path = pathlib.Path(file)
-        
-        if not path.exists():
-            fail.append(path)
+        load = smart_load(file)
+        if not load:
+            fail.append(load)
             continue
 
-        if path.match("*.json"):
-            success.append(json.loads(path.read_text(encoding="UTF-8")))
-
-        elif path.match("*.csv"):
-            with open(path, 'r', encoding="UTF-8", newline='') as file:
-                reader = csv.reader(file)
-                next(reader)
-                success.append([row for row in reader])
-
-        elif path.match("*.txt"):
-            success.append(path.read_text(encoding="UTF-8"))
-
-        elif path.match("*.tex"):
-            success.append(path.read_text(encoding="UTF-8"))
-
-        else:
-            raise NotImplemented(f"{path} extension not supported")
+        success.append(load)
 
     return success, fail
 
@@ -594,7 +602,7 @@ def run():
     ]
 
     logger.info("loading all files...")
-    success, fail = smart_load(need)
+    success, fail = smart_loads(need)
 
     if len(fail) > 0:
         raise Exception(f"failed to load : {fail}")
