@@ -648,10 +648,6 @@ def run():
     logger.info("sending emails...")
     while sended < mail_count:
         try:            
-            to_wait = times[mail_count]
-            logger.info(f"waiting {to_wait} sec...")
-            wait(to_wait)
-
             logger.info(f"processing company...")
             company = database[index]
             
@@ -665,6 +661,10 @@ def run():
                 skipped += 1
                 index += 1
                 continue
+
+            to_wait = times[mail_count]
+            logger.info(f"waiting {to_wait} sec...")
+            wait(to_wait)
 
             company_db = ensure_company(
                 cursor,
