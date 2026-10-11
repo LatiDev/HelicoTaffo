@@ -812,6 +812,9 @@ if __name__ == "__main__":
     DEV = args.launch == "DEV"
     PRINT = args.print
 
+    
+    print(f"LAUNCHING IN {DEV} mode !")
+
     dotenv.load_dotenv()
 
     run()
