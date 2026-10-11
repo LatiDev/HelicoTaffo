@@ -1,6 +1,6 @@
 import model, render, mail, watermark
 import psycopg2
-import dataclasses, json, random, typing, hashlib, shutil, copy, csv, pathlib, time, os, datetime, types, uuid
+import dataclasses, json, random, typing, hashlib, shutil, copy, csv, pathlib, time, os, datetime, os
 
 @dataclasses.dataclass
 class Experience:
@@ -571,15 +571,15 @@ def insert_file(
     return FileDB(*data)
 
 def run():
-    import logging, datetime
+    import logging, datetime, os
     
-    if not os.path.exists("logs"):
-        os.mkdir("logs")
+    if not os.path.exists(os.environ['LOG_FOLDER']):
+        os.mkdir(os.environ['LOG_FOLDER'])
 
-    if not os.path.exists("certification"):
-        os.mkdir("certification")
+    if not os.path.exists(os.environ['CERTIFICATION_FOLDER']):
+        os.mkdir(os.environ['CERTIFICATION_FOLDER'])
 
-    debug_log = f"./logs/run-{datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d_%H-%M-%S.%f+00-00")}.log"
+    debug_log = f"./{os.environ['LOG_FOLDER']}/run-{datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d_%H-%M-%S.%f+00-00")}.log"
 
     logging.basicConfig(
         filename=debug_log,
@@ -591,14 +591,11 @@ def run():
     logger = logging.getLogger(__name__)
 
     need = [
-        "config.json",
-        "template.json",
-        "template.tex",
-        "mail-main.txt",
-        "mail-second.txt",
-        "me.json",
-        "database.json",
-        "data.csv"
+        os.environ['RESUME_DATA'],
+        os.environ['RESUME_TEMPLATE'],
+        os.environ['MAIN_MAIL_TEMPLATE'],
+        os.environ['SECOND_MAIL_TEMPLATE'],
+        os.environ['DEV_DATA_FILE'] if DEV else os.environ['MAIN_DATA_FILE']
     ]
 
     logger.info("loading all files...")
@@ -608,45 +605,46 @@ def run():
         raise Exception(f"failed to load : {fail}")
 
     (
-        config_json,
         resume_json, 
         resume_tex, 
         mail_main_template,
         mail_seco_template,
-        me_json, 
-        database_json, 
         email_lines
     ) = success
 
-    config = Config(**config_json)
     original = parse_to_template(resume_json)
     renderer = render.Render(resume_tex)
     mail_main_template = mail_main_template
     mail_seco_template = mail_seco_template
-    me = Me(**me_json)
-    postgress = psycopg2.connect(**database_json)
+    postgress = psycopg2.connect(
+        database=os.environ['DEV_DB_NAME'] if DEV else os.environ['MAIN_DB_NAME'],
+        user=os.environ['DEV_DB_USER'] if DEV else os.environ['MAIN_DB_USER'],
+        password=os.environ['DEV_DB_PASSWORD'] if DEV else os.environ['MAIN_DB_PASSWORD'],
+        host=os.environ['DEV_DB_HOST'] if DEV else os.environ['MAIN_DB_HOST'],
+        port=os.environ['DEV_DB_PORT'] if DEV else os.environ['MAIN_DB_PORT']
+    )
     database = [CompanyDB(*line) for line in email_lines]
 
     start_date = datetime.datetime.now()
 
     logger.info("loading ollama...")
-    ollama = model.Model("localhost", "llama3.2:3b")
+    ollama = model.Model(os.environ['OLLAMA_IP'], os.environ['OLLAMA_MODEL'])
 
     postgress.set_client_encoding("UTF8")
     cursor = postgress.cursor()
 
-    mail_count = random.randint(config.mail_min, config.mail_max)
-    times = gen_wait(config.session_time, mail_count)
+    mail_count = random.randint(int(os.environ['MAIL_MIN']), int(os.environ['MAIL_MAX']))
+    times = gen_wait(int(os.environ['DEV_SESSION_TIME'] if DEV else os.environ['MAIN_SESSION_TIME']), mail_count)
 
-    if not os.path.exists("cvs"):
-        os.mkdir("cvs")
+    if not os.path.exists(os.environ['RESUME_FOLDER']):
+        os.mkdir(os.environ['RESUME_FOLDER'])
 
     sended = 0
     skipped = 0
     index = 0
 
     logger.info("sending emails...")
-    while sended < mail_count:
+    while index < len(database) and sended < mail_count:
         try:            
             logger.info(f"processing company...")
             company = database[index]
@@ -680,17 +678,22 @@ def run():
             )
 
             logger.info(f"processing mail...")
-            title = title_variation(company.name, me.job)
+            title = title_variation(company.name, os.environ['JOB'])
             message = mail_variation(
                 ollama, 
                 fill_mail(
                     mail_main_template if company.classification == "MAIN" else mail_seco_template, 
-                    me.fullname, 
+                    os.environ['FULLNAME'], 
                     company.job
                 )
             )
 
-            email = mail.base(me.email, "bl@dtd.be", title, message)
+            email = mail.base(
+                os.environ['PRO_EMAIL'], 
+                os.environ['DEV_EMAIL'] if DEV else company.email, 
+                title, 
+                message
+            )
 
             logger.info(f"processing application...")
             application_db = insert_application(
@@ -710,15 +713,23 @@ def run():
                 pdf_filename = renderer.do(resume_variation(original, ollama))
 
                 watermark.print(
-                    "attachment.pdf", 
+                    os.environ['CERTIFICATION_FILE'], 
                     "attestation.pdf", 
-                    f"from {me.email} to {company.email}", 
+                    f"from {os.environ['PRO_EMAIL']} to {company.email}", 
                     28
                 )
 
                 email_files = [
-                    (pdf_filename, resume_filename, f"./cvs/{resume_filename}"),
-                    ("attestation.pdf", "attestation.pdf", f"./certification/attestation.pdf")
+                    (
+                        pdf_filename, 
+                        resume_filename, 
+                        f"./{os.environ['RESUME_FOLDER']}/{resume_filename}"
+                    ),
+                    (
+                        "attestation.pdf", 
+                        "attestation.pdf", 
+                        f"./{os.environ['CERTIFICATION_FOLDER']}/attestation.pdf"
+                    )
                 ]
 
                 for name, filename, path in email_files:
@@ -738,7 +749,11 @@ def run():
                 mail.add_files(email, [path for name, filename, path in email_files])
 
             logger.info(f"sending mail...")
-            mail.send(email, me.email, me.password)
+            mail.send(
+                email, 
+                os.environ['PRO_EMAIL'], 
+                os.environ['PRO_PASSWORD']
+            )
 
             postgress.commit()
             logger.info(f"sended email to {company.email}")
@@ -748,9 +763,23 @@ def run():
             postgress.rollback()
             logger.exception(error)
 
-            error_email = mail.base(me.email, me.error_email, "HelicoTaffo Error", str(error))
-            mail.add_file(email, debug_log)
-            mail.send(error_email, me.email, me.password)
+            #EACH ERROR = 1 MAIL 
+            #SPAM EMAIL IF MULTIPLE
+            #TODO FIX
+            error_email = mail.base(
+                os.environ['PRO_EMAIL'], 
+                os.environ['ERROR_EMAIL'], 
+                "HelicoTaffo Error", 
+                str(error)
+            )
+            
+            mail.add_file(error_email, debug_log)
+            
+            mail.send(
+                error_email, 
+                os.environ['PRO_EMAIL'], 
+                os.environ['PRO_PASSWORD']
+            )
 
             skipped += 1
             continue
@@ -772,4 +801,17 @@ def run():
     postgress.close()
 
 if __name__ == "__main__":
+    import argparse, dotenv, pathlib
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--launch", choices=["DEV", "PROD"], default="DEV")
+    parser.add_argument("--print", action="store_true")
+
+    args = parser.parse_args()
+
+    DEV = args.launch == "DEV"
+    PRINT = args.print
+
+    dotenv.load_dotenv()
+
     run()
