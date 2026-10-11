@@ -1,16 +1,23 @@
-import ollama, dataclasses, json, subprocess, time
+import ollama, dataclasses, json, subprocess, time, platform
 
 class Model:
     def __init__(self, ip, name, thread = 1):
         self.model: str = name
         self.cmodel: str= f"{name}-{thread}t"
 
-        self.process = subprocess.Popen(
-            ["ollama", "serve"], 
-            stdout=subprocess.DEVNULL, 
-            stderr=subprocess.DEVNULL, 
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
+        if platform.system() == "Windows":
+            self.process = subprocess.Popen(
+                ["ollama", "serve"], 
+                stdout=subprocess.DEVNULL, 
+                stderr=subprocess.DEVNULL, 
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+        else:
+            self.process = subprocess.Popen(
+                ["ollama", "serve"], 
+                stdout=subprocess.DEVNULL, 
+                stderr=subprocess.DEVNULL, 
+            )
         
         ollama.create(
             model=self.cmodel, 
