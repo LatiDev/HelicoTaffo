@@ -24,13 +24,25 @@ class Render:
         }
         return ''.join(repl.get(c, c) for c in str(s))
 
-    def do(self, params):
+    def do(self, params, tex="temp.tex", pdf="tempd.pdf"):
         build = self.template.render(dataclasses.asdict(params))
 
-        with open("temp.tex", 'w', encoding='utf-8') as file:
+        with open(tex, 'w', encoding='utf-8') as file:
             file.write(build)
 
-        subprocess.run(["pdflatex", "-interaction=nonstopmode", "-output-directory", ".", "temp.tex"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        subprocess.run(["pdflatex", "-interaction=nonstopmode", "-output-directory", ".", "temp.tex"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        tex_path = pathlib.Path(tex)
 
-        return "temp.pdf"
+        for _ in range(2):
+            subprocess.run(
+                [
+                    "pdflatex",
+                    "-interaction=nonstopmode",
+                    tex_path.name
+                ],
+                cwd=tex_path.parent,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+
+        return pdf

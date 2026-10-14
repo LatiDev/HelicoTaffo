@@ -1,6 +1,6 @@
 import model, render, mail, watermark
 import psycopg2
-import dataclasses, json, random, typing, hashlib, shutil, copy, csv, pathlib, time, os, datetime, os
+import dataclasses, json, random, typing, hashlib, shutil, copy, csv, pathlib, time, datetime, os
 
 @dataclasses.dataclass
 class Experience:
@@ -549,7 +549,7 @@ def insert_file(
             RETURNING *;
             """,
             (
-                dto.filename, 
+                str(dto.filename), 
                 dto.hash_, 
                 dto.application_id,
             )
@@ -569,6 +569,13 @@ def insert_file(
         )
     
     return FileDB(*data)
+
+def to_assets(filename: str | pathlib.Path):
+    assets = pathlib.Path("assets")
+    if assets.exists():
+        assets.mkdir(exist_ok=True)
+    
+    return assets / pathlib.Path(filename)
 
 def run():
     import logging, datetime, os
@@ -591,11 +598,11 @@ def run():
     logger = logging.getLogger(__name__)
 
     need = [
-        os.environ['RESUME_DATA'],
-        os.environ['RESUME_TEMPLATE'],
-        os.environ['MAIN_MAIL_TEMPLATE'],
-        os.environ['SECOND_MAIL_TEMPLATE'],
-        os.environ['DEV_DATA_FILE'] if DEV else os.environ['MAIN_DATA_FILE']
+        to_assets(os.environ['RESUME_DATA']),
+        to_assets(os.environ['RESUME_TEMPLATE']),
+        to_assets(os.environ['MAIN_MAIL_TEMPLATE']),
+        to_assets(os.environ['SECOND_MAIL_TEMPLATE']),
+        to_assets(os.environ['DEV_DATA_FILE'] if DEV else os.environ['MAIN_DATA_FILE'])
     ]
 
     logger.info("loading all files...")
@@ -710,11 +717,15 @@ def run():
                 logger.info(f"adding files to application...")
                 
                 resume_filename = filename_variation(company.name)
-                pdf_filename = renderer.do(resume_variation(original, ollama))
+                pdf_filename = renderer.do(
+                    resume_variation(original, ollama),
+                    to_assets("temp.tex"),
+                    to_assets("temp.pdf")
+                )
 
                 watermark.print(
-                    os.environ['CERTIFICATION_FILE'], 
-                    "attestation.pdf", 
+                    to_assets(os.environ['CERTIFICATION_FILE']), 
+                    to_assets("attestation.pdf"), 
                     f"from {os.environ['PRO_EMAIL']} to {company.email}", 
                     28
                 )
@@ -726,8 +737,8 @@ def run():
                         f"./{os.environ['RESUME_FOLDER']}/{resume_filename}"
                     ),
                     (
-                        "attestation.pdf", 
-                        "attestation.pdf", 
+                        to_assets("attestation.pdf"), 
+                        to_assets("attestation.pdf"), 
                         f"./{os.environ['CERTIFICATION_FOLDER']}/attestation.pdf"
                     )
                 ]
@@ -740,7 +751,7 @@ def run():
                     insert_file(
                         cursor, 
                         FileInsertDTO(
-                            filename,
+                            str(filename),
                             hash_file(path),
                             application_db.id_
                         )
@@ -812,8 +823,7 @@ if __name__ == "__main__":
     DEV = args.launch == "DEV"
     PRINT = args.print
 
-    
-    print(f"LAUNCHING IN {DEV} mode !")
+    print(f"LAUNCHING IN {"DEV" if DEV else "PROD"} MODE !")
 
     dotenv.load_dotenv()
 

@@ -83,20 +83,6 @@ $RECYCLE.BIN/
 # Built Visual Studio Code Extensions
 *.vsix
 cvs
-certification
-attachment.pdf
-attestation.pdf
-data.csv
-mail-main.txt
-mail-second.txt
-temp.tex
-temp.pdf
-template.json
-template.tex
-template.pdf
-photo-resume.jpg
-helicotaffo.py.copy
-devdata.csv
-resume.pdf
-resume.tex
-resume.json
+assets
+resumes
+certifications
